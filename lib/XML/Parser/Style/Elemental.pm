@@ -10,7 +10,7 @@ package XML::Parser::Style::Elemental;
 
 use strict;
 use vars qw($VERSION);
-$VERSION = '0.40';
+$VERSION = '0.41';
 
 sub Init { 
     my $xp = shift;
@@ -40,7 +40,7 @@ sub Start {
         $node->attributes({});        
         while (@_) { 
             my($key,$value) = (shift @_,shift @_);
-            $node->attributes->{ns_qualify($xp,$key)} = $value 
+            $node->attributes->{ns_qualify($xp,$key,$tag)} = $value 
         }
     }
     $node->parent->contents([]) unless $node->parent->contents; 
@@ -57,9 +57,10 @@ sub Start {
 sub Char {
     my ($xp,$data)=@_;
     my $parent = $xp->{__stack}->[-1];
+    $parent->contents([]) unless $parent->contents;
     my $contents = $parent->contents();
-    my $class = $xp->{Elemental}->{Characters};
-    unless ($contents and ref($contents->[-1]) eq $class) {
+    my $class = $xp->{Elemental}->{Characters}; 
+    unless ($contents && ref($contents->[-1]) eq $class) {
         return if ($xp->{Elemental}->{No_Whitespace} && $data!~/\S/);
         my $node = $class->new();
         $node->parent($parent);
@@ -81,8 +82,9 @@ sub Final {
 
 sub ns_qualify { 
     return $_[1] unless $_[0]->{Namespaces}; 
-    my $ns=$_[0]->namespace($_[1]) || ''; 
-    $ns &&  $ns=~m!(/|#)$! ? "$ns$_[1]" : "$ns/$_[1]";
+    my $ns=$_[0]->namespace($_[1]) || 
+            ( $_[2] ? $_[0]->namespace($_[2]) : return $_[1] );
+    $ns=~m!(/|#)$! ? "$ns$_[1]" : "$ns/$_[1]";
 }
 
 #--- Dynamic Class Factory
@@ -119,7 +121,7 @@ __END__
 =head1 NAME
 
 XML::Parser::Style::Elemental - a slightly more advanced and flexible 
-object tree style for XML::Parser.
+object tree style for XML::Parser
 
 =head1 SYNOPSIS
 
@@ -239,10 +241,6 @@ When set to true, C<No_Whitespace> causes Elemental to pass over character
 strings of all whitespace instead of creating a new Character object. This
 options is helpful in stripping out extraneous non-markup characters that 
 are commonly introduced when formatting XML to be human readable.
-
-=head1 DEPENDENCIES
-
-L<XML::Parser>
 
 =head1 SEE ALSO
 
