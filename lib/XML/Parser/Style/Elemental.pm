@@ -10,7 +10,7 @@ package XML::Parser::Style::Elemental;
 
 use strict;
 use vars qw($VERSION);
-$VERSION = '0.41';
+$VERSION = '0.50';
 
 sub Init { 
     my $xp = shift;
@@ -89,9 +89,12 @@ sub ns_qualify {
 
 #--- Dynamic Class Factory
 {
-    my $methods = {
+    my $methods = { 
+            # All get root methods through special handling
+            # Element gets a text_content method also through 
+            # special handling
             Document => [ qw(contents) ],
-            Element => [ qw(name parent contents attributes) ],
+            Element => [ qw(name parent contents attributes) ], 
             Characters => [ qw(parent data) ]
     };
     
@@ -106,7 +109,22 @@ sub ns_qualify {
                 sub { 
                     $_[0]->{$field} = $_[1] if defined $_[1];
                     $_[0]->{$field};
-                }
+                };
+        }
+        *{"${class}::root"} = 
+            sub { 
+                my $o=shift; 
+                while($o->can('parent') && $o->parent) { $o = $o->parent }
+                $o; 
+            };            
+        if ($type eq 'Element') {
+            *{"${class}::text_content"} = 
+                sub { 
+                    return '' unless ref($_[0]->contents);
+                    join('', map { ref($_) eq $class ? 
+                                $_->text_content : $_->data } 
+                                    @{ $_[0]->contents } );
+                };
         }
         $xp->{Elemental}->{$type} = $class;
     }
@@ -131,11 +149,16 @@ object tree style for XML::Parser
  my $p = XML::Parser->new( Style => 'Elemental', Pkg => 'E' );
  my $doc = <<DOC;
  <foo>
-   <bar key="value">The world is foo enough.</bar>
+     <bar key="value">The world is foo enough.</bar>
  </foo>
  DOC
  my ($e) = $p->parse($doc);
  print Data::Dumper->Dump( [$e] );
+ 
+ my $test_node = $e->contents->[0];
+ print "root: ".$test_node->root." is ".$e."\n";
+ print "text content of ".$test_node->name."\n";
+ print $test_node->text_content;
 
 =head1 DESCRIPTION
 
@@ -163,6 +186,8 @@ class type.
 
 =item contents - An array reference of direct decendents.
 
+=item root - Return reference of itself.
+
 =back
 
 =item Element - The tags in the document. 
@@ -180,6 +205,10 @@ descendents/children objects.
 =item attributes - A hash reference of key-value pairs representing
 the tags attributes.
 
+=item text_content - The text content of all siblings, whitespace included.
+
+=item root - A reference to the Document object.
+
 =back
 
 =item Characters - Non-markup text. 
@@ -189,6 +218,8 @@ the tags attributes.
 =item data - A string of non-markup characters.
 
 =item parent - A reference to the parent object.
+
+=item root - A reference to the Document object.
 
 =back
 
@@ -245,6 +276,10 @@ are commonly introduced when formatting XML to be human readable.
 =head1 SEE ALSO
 
 L<XML::Parser::Style::Objects>
+
+=head1 TO DO
+
+=item * Implement xml::base support instead of No_Whitespace.
 
 =head1 LICENSE
 

@@ -1,5 +1,9 @@
 Revision history for Perl extension XML::Parser::Style::Elemental.
 
+0.50 Apr 17 2004
+    - Added root method to all dynamic objects.
+    - Added text_content method to dynamic Element object.
+
 0.41 Apr 04 2004
 	- Fixed bug were Character objects were not being attached to
 	  their parent if a contents array reference did not already 
